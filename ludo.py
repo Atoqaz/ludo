@@ -237,12 +237,6 @@ class Ludo:
             full.remove(item)
         return used
 
-    def _get_player_name(self, PLAYERS: List[Player], color_turn: str):
-        for player in PLAYERS:
-            if player.color == color_turn:
-                return player.name
-        return None
-
     def _detect_win(self, board: pd.DataFrame, player: Player) -> bool:
         for i, score in enumerate(board.mean()):
             if score == self.goal_pos:
@@ -271,28 +265,26 @@ class Ludo:
 
         return colors, color_to_player_idx, colors_in_play
 
-    # @profile
     def play(self, PLAYERS: List[Player], display=True):
         colors, color_to_player_idx, colors_in_play = self._initialize_game(PLAYERS=PLAYERS)
 
-        # Select starting player, and get teams in play
+        # Select starting player
         color_turn = np.random.choice(colors, 1)[0]
         # Start game
         while True:
             dice_roll = self._roll_dice(board=self.board, color_turn=color_turn)
 
+            player = PLAYERS[color_to_player_idx[color_turn]]
             # Display information:
             if display:
                 os.system("cls" if os.name == "nt" else "clear")
                 print(self.board)
-                player_name = self._get_player_name(PLAYERS=PLAYERS, color_turn=color_turn)
-                print(f"{player_name} ({color_turn}) rolled: {dice_roll}")
+                print(f"{player.name} ({color_turn}) rolled: {dice_roll}")
 
             # Get options and move player piece
             moveable_pieces = self.get_moveable_pieces(board=self.board, color_turn=color_turn, dice_roll=dice_roll)
             if moveable_pieces:
                 while True:
-                    player = PLAYERS[color_to_player_idx[color_turn]]
                     if player.function == None:
                         piece2move = int(input(f"Select piece to move {moveable_pieces}: "))
                     else:
@@ -313,7 +305,7 @@ class Ludo:
             else:
                 if display:
                     print("Sorry, you could not move any pieces this turn")
-                    # sleep(1.5)
+                    sleep(1.5)
 
             # Give extra turn if globe is rolled
             if dice_roll != "globe":
@@ -324,8 +316,7 @@ class Ludo:
 
 
 def make_move_atoqaz(PLAYERS: List[Player], board: pd.DataFrame, moveable_pieces: List[int]):
-    # print("Atoqaz' function")
-    # piece2move = int(input(f"Select piece to move {moveable_pieces}: "))
+    print("Atoqaz' function")
     piece2move = min(moveable_pieces)
     return piece2move
 
@@ -345,22 +336,10 @@ def make_move_quantumcat(PLAYERS: List[Player], board: pd.DataFrame, moveable_pi
 if __name__ == "__main__":
     PLAYERS = [
         Player("Atoqaz", make_move_atoqaz),
-        Player("SupDeus", make_move_atoqaz),
-        Player("QuantumCat", make_move_atoqaz),
-        Player("Last", make_move_atoqaz),
-        # Player("Last_Player", None),
+        Player("SupDeus", make_move_supdeus),
+        Player("QuantumCat", make_move_quantumcat),
+        Player("Manual input", None),
     ]
 
     ludo = Ludo()
     ludo.play(PLAYERS=PLAYERS, display=False)
-
-    # ludo.board.loc[[0], ["green"]] = 14
-    # ludo.board.loc[[1], ["green"]] = 14
-    # ludo.board.loc[[2], ["green"]] = 14
-    # ludo.board.loc[[3], ["green"]] = 14
-    # print(ludo.board)
-    # ludo.display_board(board=ludo.board)
-    # ludo.move_piece(board=ludo.board, color_turn="orange", moveable_pieces=[0,1,2,3],
-    #                 dice_roll="globe", piece2move=0)
-    # print(ludo.board)
-    # ludo.display_board(board=ludo.board)
