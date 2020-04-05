@@ -11,7 +11,7 @@ from multiprocessing import Process
 
 # import tkinter as tk
 from PIL import Image  # , ImageTk
-from profiler import profile
+# from profiler import profile
 
 
 @dataclass()
@@ -271,7 +271,7 @@ class Ludo:
 
         return colors, color_to_player_idx, colors_in_play
 
-    @profile
+    # @profile
     def play(self, PLAYERS: List[Player], display=True):
         colors, color_to_player_idx, colors_in_play = self._initialize_game(PLAYERS=PLAYERS)
 
