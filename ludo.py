@@ -2,16 +2,14 @@ import numpy as np
 from typing import List
 from random import randint, choice
 from dataclasses import dataclass
-
-# from time import sleep
 import copy
 import os
 
-# Image display
-from multiprocessing import Process
+# from time import sleep
 
-# import tkinter as tk
-from PIL import Image  # , ImageTk
+# Image display
+from PIL import Image
+import matplotlib.pyplot as plt
 
 
 @dataclass()
@@ -19,6 +17,7 @@ class Player:
     name: str
     function: str  # Function, not a string. I don't know the name/syntax
     team: int = None
+    color: str = None
 
     def __repr__(self):
         return f"[Name: {self.name}, Function: {self.function}, Team idx: {self.team}]"
@@ -77,6 +76,42 @@ class Ludo:
 
                 board_abs[i, j] = real_pos
         return board_abs
+
+    def _plot_setup(self):
+        self.img_board = Image.open("board/board.png")
+        img_blue = Image.open("board/blue.png")
+        img_red = Image.open("board/red.png")
+        img_green = Image.open("board/green.png")
+        img_orange = Image.open("board/orange.png")
+        self.pieces = [img_blue, img_red, img_green, img_orange]
+        self.plot_offset = [(-14, -14), (7, -14), (-14, 7), (7, 7)]
+        # Start places
+        self.board_pos = [(700, 140), (700, 700), (140, 700), (140, 140)]
+        # Part of blue path
+        self.board_pos += [(476, 84 + 56 * x) for x in range(5)]
+        # Red path
+        self.board_pos += [(532 + 56 * x, 364) for x in range(6)]
+        self.board_pos += [(812, 420)]
+        self.board_pos += [(812 - 56 * x, 476) for x in range(6)]
+        # # Green path
+        self.board_pos += [(476, 532 + 56 * x) for x in range(6)]
+        self.board_pos += [(420, 812)]
+        self.board_pos += [(364, 812 - 56 * x) for x in range(6)]
+        # # Orange path
+        self.board_pos += [(308 - 56 * x, 476) for x in range(6)]
+        self.board_pos += [(28, 420)]
+        self.board_pos += [(28 + 56 * x, 364) for x in range(6)]
+        # Blue path
+        self.board_pos += [(364, 308 - 56 * x) for x in range(6)]
+        self.board_pos += [(420 + 56 * x, 28) for x in range(2)]
+        # Blue arm
+        self.board_pos += [(420, 84 + 56 * x) for x in range(6)]
+        # Red arm
+        self.board_pos += [(756 - 56 * x, 420) for x in range(6)]
+        # Green arm
+        self.board_pos += [(420, 756 - 56 * x) for x in range(6)]
+        # Orange arm
+        self.board_pos += [(84 + 56 * x, 420) for x in range(6)]
 
     def _roll_dice(self, board: np.array, turn: int):
         if (board[:, turn] == 0).all():
@@ -158,10 +193,13 @@ class Ludo:
         n_players = len(PLAYERS)
         if n_players >= 2 and n_players <= 4:
             teams = np.random.choice([0, 1, 2, 3], n_players, replace=False)
+            colors = ["Blue", "Red", "Green", "Orange"]
+            print(teams)
 
             team_to_player_idx = {}
             for i, player in enumerate(PLAYERS):
                 player.team = teams[i]
+                player.color = colors[teams[i]]
                 team_to_player_idx[teams[i]] = i
 
             teams_in_play = self._get_used_items(full=[0, 1, 2, 3], subset=teams)
@@ -176,11 +214,14 @@ class Ludo:
             if score == final_pos:
                 # os.system("cls" if os.name == "nt" else "clear")
                 # print("\n--- GAME OVER ---\n")
-                # print(f"The winner is {player.name}")
+                # print(f"The winner is {player.name} ({player.color})")
                 return True
         return False
 
     def play(self, PLAYERS: List[Player], display=True):
+        if display:
+            self._plot_setup()
+
         teams, teams_in_play, team_to_player_idx = self._initialize_game(PLAYERS=PLAYERS)
 
         # Select starting player
@@ -191,9 +232,10 @@ class Ludo:
             player = PLAYERS[team_to_player_idx[turn]]
             # Display information:
             if display:
-                # os.system("cls" if os.name == "nt" else "clear")
+                os.system("cls" if os.name == "nt" else "clear")
+                self.display_board(self.board)
                 print(self.board)
-                print(f"{player.name} (column {turn}) rolled: {dice_roll}")
+                print(f"{player.name} ({player.color}) rolled: {dice_roll}")
 
             # Get options and move player piece
             moveable_pieces = self.get_moveable_pieces(board=self.board, turn=turn, dice_roll=dice_roll)
@@ -234,28 +276,17 @@ class Ludo:
 
     def display_board(self, board: np.array) -> None:
         board_abs = self.board_to_abs_pos(board=board)
-        displayed_board = copy.deepcopy(self.img_board)
+        img_board = copy.deepcopy(self.img_board)
 
-        for i in range(4):
-            for j in range(4):
-                val = board[i][j]
-                display_pos = self._add_tup(self.board_pos[val], self.plot_offset[j])
-                displayed_board.paste(self.pieces[i], display_pos)
-        displayed_board.show()
+        for j in range(4):
+            for i in range(4):
+                val = board_abs[i][j]
+                display_pos = self._add_tup(self.board_pos[val], self.plot_offset[i])
+                img_board.paste(self.pieces[j], display_pos)
 
-        # window = tk.Tk()
-        # imagefile = "board/board.png"
-        # img = ImageTk.PhotoImage(Image.open(imagefile))
-        # lbl = tk.Label(window, image = img).pack()
-        # window.mainloop()
-
-    def multiplot(self):
-        p = Process(target=self.display_board, kwargs={"board": self.board})
-        p.start()
-        moves = self.get_moveable_pieces(board=self.board, color_turn="blue", dice_roll="globe")
-        piece = input(f"Select piece to move: {moves} ")
-        print(f"Moving piece: {piece}")
-        p.join()
+        plt.axis("off")
+        plt.imshow(img_board)
+        plt.show(block=False)
 
 
 if __name__ == "__main__":
@@ -265,6 +296,5 @@ if __name__ == "__main__":
         Player("Two", None),
         Player("Three", None),
     ]
-
     ludo = Ludo()
-    ludo.play(PLAYERS)
+    ludo.play(PLAYERS, display=True)
