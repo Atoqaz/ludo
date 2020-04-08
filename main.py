@@ -1,16 +1,19 @@
 
 from ludo import Ludo, Player
-from ludo_optimization import LudoOptimized as Ludo2
 from atoqaz_fun import make_move_atoqaz
 
 from profiler import profile
+
+
+import numpy as np
+
+
 
 
 @profile
 def measure_time(PLAYERS, N):
     for n in range(N):
         ludo = Ludo()
-        # ludo = Ludo2()
         ludo.play(PLAYERS, display=False)
 
 
@@ -24,7 +27,7 @@ if __name__ == "__main__":
         Player("Four", make_move_atoqaz),
     ]
 
-    measure_time(PLAYERS, N=100)
+    # measure_time(PLAYERS, N=100)
 
-    # ludo = Ludo()
-    # ludo.play(PLAYERS=PLAYERS, display=False)
+    ludo = Ludo()
+    ludo.play(PLAYERS=PLAYERS, display=True)

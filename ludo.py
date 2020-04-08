@@ -1,28 +1,27 @@
-import pandas as pd
 import numpy as np
 from typing import List
 from random import randint, choice
 from dataclasses import dataclass
-from time import sleep
+
+# from time import sleep
 import copy
 import os
 
+# Image display
 from multiprocessing import Process
 
 # import tkinter as tk
 from PIL import Image  # , ImageTk
 
 
-
-
 @dataclass()
 class Player:
     name: str
-    function: str
-    color: str = None
+    function: str  # Function, not a string. I don't know the name/syntax
+    team: int = None
 
     def __repr__(self):
-        return f"[Name: {self.name}, Function: {self.function}, Color: {self.color}]"
+        return f"[Name: {self.name}, Function: {self.function}, Team idx: {self.team}]"
 
 
 class Ludo:
@@ -32,9 +31,10 @@ class Ludo:
         self.globes = [1, 9, 14, 22, 27, 35, 40, 48]
         self.goal_pos = 57
         self.offset = 13  # Offset between teams on the board
-        # self._plot_setup()
+        self.dice_star = 3  # Dice roll corresponding to a star
+        self.dice_globe = 5  # Dice roll corresponding to a globe
 
-    def _create_board(self) -> pd.DataFrame:
+    def _create_board(self) -> np.array:
         """ The board is the position of the 4 pieces for each team.
             The position can range from 0 to 57
             The position is relative to each player.
@@ -45,148 +45,68 @@ class Ludo:
             57:     End
 
         """
-        board_array = np.zeros((4, 4), dtype=int)
-        board = pd.DataFrame(board_array)
-        board = board.rename(columns={0: "blue", 1: "red", 2: "green", 3: "orange"})
-
-        self.board_order = {
-            "blue": ["red", "green", "orange"],
-            "red": ["green", "orange", "blue"],
-            "green": ["orange", "blue", "red"],
-            "orange": ["blue", "red", "green"],
-        }
+        board = np.zeros((4, 4), dtype=int)
         return board
 
-    def _plot_setup(self):
-        self.img_board = Image.open("board/board.png")
-        img_blue = Image.open("board/blue.png")
-        img_red = Image.open("board/red.png")
-        img_green = Image.open("board/green.png")
-        img_orange = Image.open("board/orange.png")
-        self.pieces = [img_blue, img_red, img_green, img_orange]
-        self.plot_offset = [(-14, -14), (7, -14), (-14, 7), (7, 7)]
-        # Start places
-        self.board_pos = [(700, 140), (700, 700), (140, 700), (140, 140)]
-        # Part of blue path
-        self.board_pos += [(476, 84 + 56 * x) for x in range(5)]
-        # Red path
-        self.board_pos += [(532 + 56 * x, 364) for x in range(6)]
-        self.board_pos += [(812, 420)]
-        self.board_pos += [(812 - 56 * x, 476) for x in range(6)]
-        # # Green path
-        self.board_pos += [(476, 532 + 56 * x) for x in range(6)]
-        self.board_pos += [(420, 812)]
-        self.board_pos += [(364, 812 - 56 * x) for x in range(6)]
-        # # Orange path
-        self.board_pos += [(308 - 56 * x, 476) for x in range(6)]
-        self.board_pos += [(28, 420)]
-        self.board_pos += [(28 + 56 * x, 364) for x in range(6)]
-        # Blue path
-        self.board_pos += [(364, 308 - 56 * x) for x in range(6)]
-        self.board_pos += [(420 + 56 * x, 28) for x in range(2)]
-        # Blue arm
-        self.board_pos += [(420, 84 + 56 * x) for x in range(6)]
-        # Red arm
-        self.board_pos += [(756 - 56 * x, 420) for x in range(6)]
-        # Green arm
-        self.board_pos += [(420, 756 - 56 * x) for x in range(6)]
-        # Orange arm
-        self.board_pos += [(84 + 56 * x, 420) for x in range(6)]
+    def board_to_abs_pos(self, board: np.array) -> np.array:
+        """ Gets the absolute position of the pieces
 
-    def display_board(self, board: pd.DataFrame) -> None:
-        # window = tk.Tk()
-        # imagefile = "board/board.png"
-        # img = ImageTk.PhotoImage(Image.open(imagefile))
-        # lbl = tk.Label(window, image = img).pack()
-        # window.mainloop()
+            0:      Blue start
+            1:      Red start
+            2:      Green start
+            3:      Orange start
 
-        board_abs = self.board_to_abs_pos(board=board)
-        displayed_board = copy.deepcopy(self.img_board)
+            4-55:   Main board, starting at blue globus, clockwise
+            
+            56-61:  Blue arm
+            62-67:  Red arm
+            68-73:  Green arm
+            74-79:  Orange arm
+        """
+        board_abs = np.zeros((4, 4), dtype=int)
 
-        i = 0  # color/column index
-        for player, column in board_abs.iteritems():
-            for j, val in enumerate(column):
-                displayed_board.paste(self.pieces[i], self._add_tup(self.board_pos[val], self.plot_offset[j]))
-            i += 1
+        for i in range(4):
+            for j in range(4):
+                val = board[i][j]
+                if val == 0:
+                    real_pos = j
+                elif val >= 52:
+                    real_pos = 4 + val + j * 6
+                else:
+                    real_pos = 4 + (val + j * self.offset - 1) % 52
 
-        displayed_board.show()
+                board_abs[i, j] = real_pos
+        return board_abs
 
-    def multiplot(self):
-        p = Process(target=self.display_board, kwargs={"board": self.board})
-        p.start()
-        moves = self.get_moveable_pieces(board=self.board, color_turn="blue", dice_roll="globe")
-        piece = input(f"Select piece to move: {moves} ")
-        print(f"Moving piece: {piece}")
-        p.join()
-
-    def testing(self):
-        # Temporary
-        # self.color_turn = "blue"
-        # self.dice_roll = "star"
-
-        # self.board.loc[[0], ["blue"]] = 2
-        # self.board.loc[[1], ["blue"]] = 14
-
-        # for i in range(3):
-        #     self.display_board(board=self.board)
-
-        color_turn = "blue"
-
-        dice_roll = self._roll_dice(board=self.board,color_turn=color_turn)
-        self.board = self.move_piece(board=self.board, color_turn=color_turn, dice_roll=dice_roll, piece2move=0)
-        print(self.board)
-
-    def get_moveable_pieces(self, board: pd.DataFrame, color_turn: str, dice_roll: str) -> List[int]:
-        if dice_roll == "star":
-            mask = (board[color_turn] < self.stars[-1]) & (board[color_turn] > 0)
-            return board[mask].index.tolist()
-        elif dice_roll == "globe":
-            mask = board[color_turn] < self.globes[-1]
-            return board[mask].index.tolist()
+    def _roll_dice(self, board: np.array, turn: int):
+        if (board[:, turn] == 0).all():
+            for count in range(3):
+                dice_roll = randint(1, 6)
+                if dice_roll == self.dice_globe:
+                    break
         else:
-            mask = (board[color_turn] > 0) & (board[color_turn] < self.goal_pos)
-            return board[mask].index.tolist()
+            dice_roll = randint(1, 6)
+        return dice_roll
 
-    def _effecting_others(self, board: pd.DataFrame, color_turn: str, location: int) -> dict:
+    def get_moveable_pieces(self, board: np.array, turn: int, dice_roll: int) -> List[int]:
+        if dice_roll == self.dice_star:
+            mask = (board[:, turn] < self.stars[-1]) & (board[:, turn] > 0)
+        elif dice_roll == self.dice_globe:
+            mask = board[:, turn] < self.globes[-1]
+        else:
+            mask = (board[:, turn] > 0) & (board[:, turn] < self.goal_pos)
+        return [i for i, x in enumerate(mask) if x == True]
+
+    def _effecting_others(self, board: np.array, turn: int, location: int) -> (int, List[int]):
         if location <= 51:
-            for i, enemy in enumerate(self.board_order[color_turn], 1):
+            enemies_idx = [(x + 1 + turn) % 4 for x in range(3)]
+            for i, enemy_idx in enumerate(enemies_idx, 1):
                 pos = (location - i * self.offset - 1) % 52 + 1
-                enemy_in_spot = board.loc[:, enemy] == pos
+                enemy_in_spot = board[:, enemy_idx] == pos
                 if enemy_in_spot.any():
-                    pieces = enemy_in_spot.index[enemy_in_spot].tolist()
-                    return {enemy: pieces}
-        return None
-
-    def move_piece(
-        self, board: pd.DataFrame, color_turn: str, moveable_pieces: List[int], dice_roll: str, piece2move: int
-    ) -> pd.DataFrame:
-        if piece2move not in moveable_pieces:
-            raise ValueError(f"Unable to move piece {piece2move} for {color_turn} player")
-
-        if dice_roll == "star":
-            new_pos = self._get_next_object_pos(objects=self.stars, current_pos=board.loc[piece2move, color_turn])
-        elif dice_roll == "globe":
-            new_pos = self._get_next_object_pos(objects=self.globes, current_pos=board.loc[piece2move, color_turn])
-        else:
-            new_pos = min(board.loc[piece2move, color_turn] + int(dice_roll), self.goal_pos)
-
-        effected_pieces = self._effecting_others(board, color_turn, new_pos)
-        if effected_pieces == None:
-            # No enemy piece on location
-            board.loc[piece2move, color_turn] = new_pos
-        else:
-            enemy = next(iter(effected_pieces))
-            pieces = effected_pieces[enemy]
-            if (new_pos == 1) or (len(pieces) == 1 and (new_pos not in self.globes[1:])):
-                # Player piece takes enemy position, enemy get moved to start
-                board.loc[piece2move, color_turn] = new_pos
-                for piece in pieces:
-                    board.loc[piece, enemy] = 0
-            else:  # More than one piece on the position
-                # Player piece get moved to start
-                board.loc[piece2move, color_turn] = 0
-
-        return board
+                    pieces = [i for i, x in enumerate(enemy_in_spot) if x == True]
+                    return enemy_idx, pieces
+        return None, None
 
     def _get_next_object_pos(self, objects: list, current_pos: int) -> int:
         for object_pos in objects:
@@ -194,68 +114,37 @@ class Ludo:
                 return object_pos
         return None
 
-    def _roll_dice_single(self) -> str:
-        rand_num = randint(1, 6)
-        if rand_num == 3:
-            dice_roll = "star"
-        elif rand_num == 5:
-            dice_roll = "globe"
+    def move_piece(
+        self, board: np.array, turn: int, moveable_pieces: List[int], dice_roll: int, piece2move: int
+    ) -> np.array:
+        if piece2move not in moveable_pieces:
+            raise ValueError(f"Unable to move piece {piece2move} for player {turn}")
+
+        if dice_roll == self.dice_star:
+            new_pos = self._get_next_object_pos(objects=self.stars, current_pos=board[piece2move, turn])
+        elif dice_roll == self.dice_globe:
+            new_pos = self._get_next_object_pos(objects=self.globes, current_pos=board[piece2move, turn])
         else:
-            dice_roll = str(rand_num)
-        return dice_roll
+            new_pos = min(board[piece2move, turn] + dice_roll, self.goal_pos)
 
-    def _roll_dice(self, board: pd.DataFrame, color_turn: str):
-        if (board.loc[:, color_turn] == 0).all():
-            for count in range(3):
-                dice_roll = self._roll_dice_single()
-                if dice_roll == "globe":
-                    break
+        effected_enemy, effected_pieces = self._effecting_others(board=board, turn=turn, location=new_pos)
+        if effected_pieces == None:
+            # No enemy piece on location
+            board[piece2move, turn] = new_pos
         else:
-            dice_roll = self._roll_dice_single()
-        return dice_roll
-        # return choice(["globe","6"])
+            if (new_pos == 1) or (len(effected_pieces) == 1 and (new_pos not in self.globes[1:])):
+                # Player piece takes enemy position, enemy get moved to start
+                board[piece2move, turn] = new_pos
+                for piece in effected_pieces:
+                    board[piece, effected_enemy] = 0
+            else:  # More than one piece on the position
+                # Player piece get moved to start
+                board[piece2move, turn] = 0
 
-    def board_to_abs_pos(self, board: pd.DataFrame) -> pd.DataFrame:
-        """ Gets the absolute position of the pieces
+        return board
 
-            0:    Blue start
-            1:    Red start
-            2:   Green start
-            3:  Orange start
-
-            4-55:  Main board, starting at blue globus, clockwise
-            
-            56-61:  Blue arm
-            62-67:  Red arm
-            68-73:  Green arm
-            74-79:  Orange arm
-        """
-        board_abs = board.copy(deep=True)
-        for col in board_abs.columns:
-            board_abs[col].values[:] = 0
-
-        i = 0  # color/column index
-        for player, column in board.iteritems():
-            for j, val in enumerate(column):
-                if val == 0:
-                    real_pos = i
-
-                elif val >= 52:
-                    real_pos = 4 + val + i * 6
-                else:
-                    real_pos = 4 + (val + i * self.offset - 1) % 52
-
-                board_abs.loc[j, player] = real_pos
-            i += 1
-
-        return board_abs
-
-    def _add_tup(self, a: tuple, b: tuple) -> tuple:
-        c = tuple((x + y for x, y in zip(a, b)))
-        return c
-
-    def _get_next_player(self, colors: List[str], color_turn: str):
-        return colors[(colors.index(color_turn) + 1) % len(colors)]
+    def _get_next_player(self, teams: List[int], turn: str):
+        return teams[(teams.index(turn) + 1) % 4]
 
     def _get_used_items(self, full: list, subset: list):
         used = full
@@ -264,50 +153,50 @@ class Ludo:
             full.remove(item)
         return used
 
-    def _detect_win(self, board: pd.DataFrame, player: Player) -> bool:
-        for i, score in enumerate(board.mean()):
-            if score == self.goal_pos:
-                # os.system("cls" if os.name == "nt" else "clear")
-                # print("\n--- GAME OVER ---\n")
-                # print(f"The winner is {player.name} from the {board.columns[i]} team")
-                return True
-        return False
-
     def _initialize_game(self, PLAYERS: List[Player]):
         # Give players a color
         n_players = len(PLAYERS)
         if n_players >= 2 and n_players <= 4:
-            colors = np.random.choice(self.board.columns.tolist(), n_players, replace=False)
+            teams = np.random.choice([0, 1, 2, 3], n_players, replace=False)
 
-            color_to_player_idx = {}
+            team_to_player_idx = {}
             for i, player in enumerate(PLAYERS):
-                player.color = colors[i]
-                color_to_player_idx[colors[i]] = i
+                player.team = teams[i]
+                team_to_player_idx[teams[i]] = i
 
-            colors_in_play = self._get_used_items(full=self.board.columns.tolist(), subset=colors)
+            teams_in_play = self._get_used_items(full=[0, 1, 2, 3], subset=teams)
         else:
             raise ValueError(f"Player count should be between 2 and 4, but it is set to {n_players}")
 
-        return colors, colors_in_play, color_to_player_idx
+        return teams, teams_in_play, team_to_player_idx
+
+    def _detect_win(self, board: np.array, player: Player) -> bool:
+        final_pos = self.goal_pos * 4
+        for i, score in enumerate(board.sum(axis=0)):
+            if score == final_pos:
+                # os.system("cls" if os.name == "nt" else "clear")
+                # print("\n--- GAME OVER ---\n")
+                # print(f"The winner is {player.name}")
+                return True
+        return False
 
     def play(self, PLAYERS: List[Player], display=True):
-        colors, colors_in_play, color_to_player_idx = self._initialize_game(PLAYERS=PLAYERS)
+        teams, teams_in_play, team_to_player_idx = self._initialize_game(PLAYERS=PLAYERS)
 
         # Select starting player
-        color_turn = np.random.choice(colors, 1)[0]
+        turn = np.random.choice(teams, 1)[0]
         # Start game
         while True:
-            dice_roll = self._roll_dice(board=self.board, color_turn=color_turn)
-
-            player = PLAYERS[color_to_player_idx[color_turn]]
+            dice_roll = self._roll_dice(board=self.board, turn=turn)
+            player = PLAYERS[team_to_player_idx[turn]]
             # Display information:
             if display:
-                os.system("cls" if os.name == "nt" else "clear")
+                # os.system("cls" if os.name == "nt" else "clear")
                 print(self.board)
-                print(f"{player.name} ({color_turn}) rolled: {dice_roll}")
+                print(f"{player.name} (column {turn}) rolled: {dice_roll}")
 
             # Get options and move player piece
-            moveable_pieces = self.get_moveable_pieces(board=self.board, color_turn=color_turn, dice_roll=dice_roll)
+            moveable_pieces = self.get_moveable_pieces(board=self.board, turn=turn, dice_roll=dice_roll)
             if moveable_pieces:
                 while True:
                     if player.function == None:
@@ -320,7 +209,7 @@ class Ludo:
                 self.board = self.move_piece(
                     board=self.board,
                     moveable_pieces=moveable_pieces,
-                    color_turn=color_turn,
+                    turn=turn,
                     dice_roll=dice_roll,
                     piece2move=piece2move,
                 )
@@ -330,25 +219,52 @@ class Ludo:
             else:
                 if display:
                     print("Sorry, you could not move any pieces this turn")
-                    sleep(1.5)
+                    # sleep(1.5)
 
             # Give extra turn if globe is rolled
-            if dice_roll != "globe":
-                color_turn = self._get_next_player(colors_in_play, color_turn)
+            if dice_roll != self.dice_globe:
+                turn = self._get_next_player(teams_in_play, turn)
             else:
                 if display:
                     print("You get an extra turn")
 
+    def _add_tup(self, a: tuple, b: tuple) -> tuple:
+        c = tuple((x + y for x, y in zip(a, b)))
+        return c
+
+    def display_board(self, board: np.array) -> None:
+        board_abs = self.board_to_abs_pos(board=board)
+        displayed_board = copy.deepcopy(self.img_board)
+
+        for i in range(4):
+            for j in range(4):
+                val = board[i][j]
+                display_pos = self._add_tup(self.board_pos[val], self.plot_offset[j])
+                displayed_board.paste(self.pieces[i], display_pos)
+        displayed_board.show()
+
+        # window = tk.Tk()
+        # imagefile = "board/board.png"
+        # img = ImageTk.PhotoImage(Image.open(imagefile))
+        # lbl = tk.Label(window, image = img).pack()
+        # window.mainloop()
+
+    def multiplot(self):
+        p = Process(target=self.display_board, kwargs={"board": self.board})
+        p.start()
+        moves = self.get_moveable_pieces(board=self.board, color_turn="blue", dice_roll="globe")
+        piece = input(f"Select piece to move: {moves} ")
+        print(f"Moving piece: {piece}")
+        p.join()
 
 
+if __name__ == "__main__":
+    PLAYERS = [
+        Player("Zero", None),
+        Player("One", None),
+        Player("Two", None),
+        Player("Three", None),
+    ]
 
-# if __name__ == "__main__":
-#     PLAYERS = [
-#         Player("Atoqaz", None),
-#         Player("SupDeus", None),
-#         Player("QuantumCat", None),
-#         Player("Manual input", None),
-#     ]
-
-#     ludo = Ludo()
-#     ludo.play(PLAYERS=PLAYERS, display=False)
+    ludo = Ludo()
+    ludo.play(PLAYERS)
