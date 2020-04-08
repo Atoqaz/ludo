@@ -191,7 +191,7 @@ class Ludo:
             player = PLAYERS[team_to_player_idx[turn]]
             # Display information:
             if display:
-                # os.system("cls" if os.name == "nt" else "clear")
+                os.system("cls" if os.name == "nt" else "clear")
                 print(self.board)
                 print(f"{player.name} (column {turn}) rolled: {dice_roll}")
 
