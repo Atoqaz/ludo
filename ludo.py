@@ -20,7 +20,7 @@ class Player:
     color: str = None
 
     def __repr__(self):
-        return f"[Name: {self.name}, Function: {self.function}, Team idx: {self.team}]"
+        return f"[Name: {self.name}, Function: {self.function}, Team idx: {self.team}, Color: {self.color}]"
 
 
 class Ludo:
@@ -194,7 +194,6 @@ class Ludo:
         if n_players >= 2 and n_players <= 4:
             teams = np.random.choice([0, 1, 2, 3], n_players, replace=False)
             colors = ["Blue", "Red", "Green", "Orange"]
-            print(teams)
 
             team_to_player_idx = {}
             for i, player in enumerate(PLAYERS):
@@ -212,9 +211,9 @@ class Ludo:
         final_pos = self.goal_pos * 4
         for i, score in enumerate(board.sum(axis=0)):
             if score == final_pos:
-                # os.system("cls" if os.name == "nt" else "clear")
-                # print("\n--- GAME OVER ---\n")
-                # print(f"The winner is {player.name} ({player.color})")
+                os.system("cls" if os.name == "nt" else "clear")
+                print("\n--- GAME OVER ---\n")
+                print(f"The winner is {player.name} ({player.color})")
                 return True
         return False
 
