@@ -20,7 +20,7 @@ class Player:
     color: str = None
 
     def __repr__(self):
-        return f"[Name: {self.name}, Function: {self.function}, Team idx: {self.team}, Color: {self.color}]"
+        return f"Player(Name = {self.name}, Function = {self.function.__name__}, Team idx = {self.team}, Color = {self.color})"
 
 
 class Ludo:
@@ -152,31 +152,32 @@ class Ludo:
     def move_piece(
         self, board: np.array, turn: int, moveable_pieces: List[int], dice_roll: int, piece2move: int
     ) -> np.array:
+        _board = np.array(board, copy=True)
         if piece2move not in moveable_pieces:
             raise ValueError(f"Unable to move piece {piece2move} for player {turn}")
 
         if dice_roll == self.dice_star:
-            new_pos = self._get_next_object_pos(objects=self.stars, current_pos=board[piece2move, turn])
+            new_pos = self._get_next_object_pos(objects=self.stars, current_pos=_board[piece2move, turn])
         elif dice_roll == self.dice_globe:
-            new_pos = self._get_next_object_pos(objects=self.globes, current_pos=board[piece2move, turn])
+            new_pos = self._get_next_object_pos(objects=self.globes, current_pos=_board[piece2move, turn])
         else:
-            new_pos = min(board[piece2move, turn] + dice_roll, self.goal_pos)
+            new_pos = min(_board[piece2move, turn] + dice_roll, self.goal_pos)
 
-        effected_enemy, effected_pieces = self._effecting_others(board=board, turn=turn, location=new_pos)
+        effected_enemy, effected_pieces = self._effecting_others(board=_board, turn=turn, location=new_pos)
         if effected_pieces == None:
             # No enemy piece on location
-            board[piece2move, turn] = new_pos
+            _board[piece2move, turn] = new_pos
         else:
             if (new_pos == 1) or (len(effected_pieces) == 1 and (new_pos not in self.globes[1:])):
                 # Player piece takes enemy position, enemy get moved to start
-                board[piece2move, turn] = new_pos
+                _board[piece2move, turn] = new_pos
                 for piece in effected_pieces:
-                    board[piece, effected_enemy] = 0
+                    _board[piece, effected_enemy] = 0
             else:  # More than one piece on the position
                 # Player piece get moved to start
-                board[piece2move, turn] = 0
+                _board[piece2move, turn] = 0
 
-        return board
+        return _board
 
     def _get_next_player(self, teams: List[int], turn: str):
         return teams[(teams.index(turn) + 1) % 4]
@@ -207,13 +208,14 @@ class Ludo:
 
         return teams, teams_in_play, team_to_player_idx
 
-    def _detect_win(self, board: np.array, player: Player) -> bool:
+    def _detect_win(self, board: np.array, player: Player, display: bool) -> bool:
         final_pos = self.goal_pos * 4
         for i, score in enumerate(board.sum(axis=0)):
             if score == final_pos:
-                os.system("cls" if os.name == "nt" else "clear")
-                print("\n--- GAME OVER ---\n")
-                print(f"The winner is {player.name} ({player.color})")
+                if display:
+                    os.system("cls" if os.name == "nt" else "clear")
+                    print("\n--- GAME OVER ---\n")
+                    print(f"The winner is {player.name} ({player.color})")
                 return True
         return False
 
@@ -228,22 +230,38 @@ class Ludo:
         # Start game
         while True:
             dice_roll = self._roll_dice(board=self.board, turn=turn)
+
             player = PLAYERS[team_to_player_idx[turn]]
             # Display information:
             if display:
                 os.system("cls" if os.name == "nt" else "clear")
                 self.display_board(self.board)
-                print(self.board)
-                print(f"{player.name} ({player.color}) rolled: {dice_roll}")
+                # print(self.board)
+                if dice_roll == self.dice_star:
+                    dice_text = "Star"
+                elif dice_roll == self.dice_globe:
+                    dice_text = "Globe"
+                else:
+                    dice_text = dice_roll
+                print(f"{player.name} ({player.color}) rolled: {dice_text}")
 
             # Get options and move player piece
             moveable_pieces = self.get_moveable_pieces(board=self.board, turn=turn, dice_roll=dice_roll)
             if moveable_pieces:
                 while True:
                     if player.function == None:
-                        piece2move = int(input(f"Select piece to move {moveable_pieces}: "))
+                        try:
+                            piece2move = int(input(f"Select piece to move {moveable_pieces}: "))
+                        except ValueError:
+                            piece2move = -1
                     else:
-                        piece2move = player.function(PLAYERS=PLAYERS, board=self.board, moveable_pieces=moveable_pieces)
+                        piece2move = player.function(
+                            PLAYERS=PLAYERS,
+                            board=self.board,
+                            moveable_pieces=moveable_pieces,
+                            turn=turn,
+                            dice_roll=dice_roll,
+                        )
                     if piece2move in moveable_pieces:
                         break
 
@@ -255,19 +273,20 @@ class Ludo:
                     piece2move=piece2move,
                 )
 
-                if self._detect_win(board=self.board, player=player):
+                if self._detect_win(board=self.board, player=player, display=display):
                     break
             else:
                 if display:
                     print("Sorry, you could not move any pieces this turn")
                     # sleep(1.5)
-
+                    
             # Give extra turn if globe is rolled
             if dice_roll != self.dice_globe:
                 turn = self._get_next_player(teams_in_play, turn)
             else:
                 if display:
                     print("You get an extra turn")
+        return player
 
     def _add_tup(self, a: tuple, b: tuple) -> tuple:
         c = tuple((x + y for x, y in zip(a, b)))
