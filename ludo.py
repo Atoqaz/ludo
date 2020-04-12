@@ -180,7 +180,7 @@ class Ludo:
         return _board
 
     def _get_next_player(self, teams: List[int], turn: str):
-        return teams[(teams.index(turn) + 1) % 4]
+        return teams[(teams.index(turn) + 1) % len(teams)]
 
     def _get_used_items(self, full: list, subset: list):
         used = full

@@ -25,22 +25,24 @@ def make_statistics(PLAYERS, N):
         else:
             wins[func_name] += 1
 
+    wins = {k: v for k, v in sorted(wins.items(), key=lambda item: item[1], reverse=True)}
+
     print(wins)
 
 
 if __name__ == "__main__":
-    # PLAYERS = [
-    #     Player("One", move_max_score),
-    #     Player("Two", move_naive),
-    #     Player("Three", move_naive),
-    #     Player("Four", move_random),
-    # ]
     PLAYERS = [
-        Player("One", move_semi_manual),
-        Player("Two", move_semi_manual),
-        Player("Three", move_semi_manual),
-        Player("Four", move_semi_manual),
+        Player("One", move_max_score),
+        Player("Two", move_naive),
+        Player("Three", move_naive),
+        Player("Four", move_random),
     ]
+    # PLAYERS = [
+    #     Player("One", move_semi_manual),
+    #     Player("Two", move_semi_manual),
+    #     Player("Three", move_semi_manual),
+    #     # Player("Four", move_semi_manual),
+    # ]
     
     # measure_time(PLAYERS, N=100)
     # make_statistics(PLAYERS, N=200)
