@@ -1,5 +1,5 @@
 import numpy as np
-from typing import List
+from typing import List, Dict
 from random import randint, choice
 from dataclasses import dataclass
 import copy
@@ -10,7 +10,6 @@ import os
 # Image display
 from PIL import Image
 import matplotlib.pyplot as plt
-
 
 @dataclass()
 class Player:
@@ -24,13 +23,84 @@ class Player:
 
 
 class Ludo:
-    def __init__(self):
+    def __init__(self) -> None:
         self.stars = [6, 12, 19, 25, 32, 38, 45, 51]
         self.globes = [1, 9, 14, 22, 27, 35, 40, 48]
         self.goal_pos = 57
         self.offset = 13  # Offset between teams on the board
         self.dice_star = 3  # Dice roll corresponding to a star
         self.dice_globe = 5  # Dice roll corresponding to a globe
+
+    def play(self, PLAYERS: List[Player], display=True) -> Player:
+        if display:
+            self._plot_setup()
+        
+        self.board = self._create_board()
+        teams_in_play, team_to_player_idx = self._initialize_game(PLAYERS=PLAYERS)
+
+        # Select starting player
+        turn = np.random.choice(teams_in_play, 1)[0]
+        # Start game
+        while True:
+            dice_roll = self._roll_dice(board=self.board, turn=turn)
+
+            player = PLAYERS[team_to_player_idx[turn]]
+            # Display information:
+            if display:
+                os.system("cls" if os.name == "nt" else "clear")
+                self.display_board(self.board)
+                # print(self.board)
+                if dice_roll == self.dice_star:
+                    dice_text = "Star"
+                elif dice_roll == self.dice_globe:
+                    dice_text = "Globe"
+                else:
+                    dice_text = dice_roll
+                print(f"{player.name} ({player.color}) rolled: {dice_text}")
+
+            # Get options and move player piece
+            moveable_pieces = self.get_moveable_pieces(board=self.board, turn=turn, dice_roll=dice_roll)
+            if moveable_pieces:
+                while True:
+                    if player.function == None:
+                        try:
+                            piece2move = int(input(f"Select piece to move {moveable_pieces}: "))
+                        except ValueError:
+                            piece2move = -1
+                    else:
+                        piece2move = player.function(
+                            PLAYERS=PLAYERS,
+                            board=self.board,
+                            moveable_pieces=moveable_pieces,
+                            turn=turn,
+                            dice_roll=dice_roll,
+                        )
+                    if piece2move in moveable_pieces:
+                        break
+
+                self.board = self.move_piece(
+                    board=self.board,
+                    moveable_pieces=moveable_pieces,
+                    turn=turn,
+                    dice_roll=dice_roll,
+                    piece2move=piece2move,
+                )
+
+                if self._detect_win(board=self.board, player=player, turn=turn, display=display):
+                    break
+            else:
+                if display:
+                    print("Sorry, you could not move any pieces this turn")
+                    # sleep(1.5)
+                    
+            # Give extra turn if globe is rolled
+            if dice_roll != self.dice_globe:
+                # Set turn to the next player
+                turn = teams_in_play[(teams_in_play.index(turn) + 1) % self.n_teams_in_play]
+            else:
+                if display:
+                    print("You get an extra turn")
+        return player
 
     def _create_board(self) -> np.array:
         """ The board is the position of the 4 pieces for each team.
@@ -76,43 +146,7 @@ class Ludo:
                 board_abs[i, j] = real_pos
         return board_abs
 
-    def _plot_setup(self):
-        self.img_board = Image.open("board/board.png")
-        img_blue = Image.open("board/blue.png")
-        img_red = Image.open("board/red.png")
-        img_green = Image.open("board/green.png")
-        img_orange = Image.open("board/orange.png")
-        self.pieces = [img_blue, img_red, img_green, img_orange]
-        self.plot_offset = [(-14, -14), (7, -14), (-14, 7), (7, 7)]
-        # Start places
-        self.board_pos = [(700, 140), (700, 700), (140, 700), (140, 140)]
-        # Part of blue path
-        self.board_pos += [(476, 84 + 56 * x) for x in range(5)]
-        # Red path
-        self.board_pos += [(532 + 56 * x, 364) for x in range(6)]
-        self.board_pos += [(812, 420)]
-        self.board_pos += [(812 - 56 * x, 476) for x in range(6)]
-        # # Green path
-        self.board_pos += [(476, 532 + 56 * x) for x in range(6)]
-        self.board_pos += [(420, 812)]
-        self.board_pos += [(364, 812 - 56 * x) for x in range(6)]
-        # # Orange path
-        self.board_pos += [(308 - 56 * x, 476) for x in range(6)]
-        self.board_pos += [(28, 420)]
-        self.board_pos += [(28 + 56 * x, 364) for x in range(6)]
-        # Blue path
-        self.board_pos += [(364, 308 - 56 * x) for x in range(6)]
-        self.board_pos += [(420 + 56 * x, 28) for x in range(2)]
-        # Blue arm
-        self.board_pos += [(420, 84 + 56 * x) for x in range(6)]
-        # Red arm
-        self.board_pos += [(756 - 56 * x, 420) for x in range(6)]
-        # Green arm
-        self.board_pos += [(420, 756 - 56 * x) for x in range(6)]
-        # Orange arm
-        self.board_pos += [(84 + 56 * x, 420) for x in range(6)]
-
-    def _roll_dice(self, board: np.array, turn: int):
+    def _roll_dice(self, board: np.array, turn: int) -> int:
         if (board[:, turn] == 0).all():
             for _ in range(3):
                 dice_roll = randint(1, 6)
@@ -177,10 +211,7 @@ class Ludo:
 
         return _board
 
-    def _get_next_player(self, teams: List[int], turn: str):
-        return teams[(teams.index(turn) + 1) % len(teams)]
-
-    def _initialize_game(self, PLAYERS: List[Player]):
+    def _initialize_game(self, PLAYERS: List[Player]) -> (List[int], Dict[int,int]):
         # Give players a color
         n_players = len(PLAYERS)
         if n_players >= 2 and n_players <= 4:
@@ -203,7 +234,7 @@ class Ludo:
         else:
             raise ValueError(f"Player count should be between 2 and 4, but it is set to {n_players}")
 
-        return teams, teams_in_play, team_to_player_idx
+        return teams_in_play, team_to_player_idx
 
     def _detect_win(self, board: np.array, player: Player, turn: int, display: bool) -> bool:
         for pos in board[:, turn]:
@@ -217,76 +248,41 @@ class Ludo:
             return True
         return False
 
-    def play(self, PLAYERS: List[Player], display=True):
-        if display:
-            self._plot_setup()
-        
-        self.board = self._create_board()
-        teams, teams_in_play, team_to_player_idx = self._initialize_game(PLAYERS=PLAYERS)
-
-        # Select starting player
-        turn = np.random.choice(teams, 1)[0]
-        # Start game
-        while True:
-            dice_roll = self._roll_dice(board=self.board, turn=turn)
-
-            player = PLAYERS[team_to_player_idx[turn]]
-            # Display information:
-            if display:
-                os.system("cls" if os.name == "nt" else "clear")
-                self.display_board(self.board)
-                # print(self.board)
-                if dice_roll == self.dice_star:
-                    dice_text = "Star"
-                elif dice_roll == self.dice_globe:
-                    dice_text = "Globe"
-                else:
-                    dice_text = dice_roll
-                print(f"{player.name} ({player.color}) rolled: {dice_text}")
-
-            # Get options and move player piece
-            moveable_pieces = self.get_moveable_pieces(board=self.board, turn=turn, dice_roll=dice_roll)
-            if moveable_pieces:
-                while True:
-                    if player.function == None:
-                        try:
-                            piece2move = int(input(f"Select piece to move {moveable_pieces}: "))
-                        except ValueError:
-                            piece2move = -1
-                    else:
-                        piece2move = player.function(
-                            PLAYERS=PLAYERS,
-                            board=self.board,
-                            moveable_pieces=moveable_pieces,
-                            turn=turn,
-                            dice_roll=dice_roll,
-                        )
-                    if piece2move in moveable_pieces:
-                        break
-
-                self.board = self.move_piece(
-                    board=self.board,
-                    moveable_pieces=moveable_pieces,
-                    turn=turn,
-                    dice_roll=dice_roll,
-                    piece2move=piece2move,
-                )
-
-                if self._detect_win(board=self.board, player=player, turn=turn, display=display):
-                    break
-            else:
-                if display:
-                    print("Sorry, you could not move any pieces this turn")
-                    # sleep(1.5)
-                    
-            # Give extra turn if globe is rolled
-            if dice_roll != self.dice_globe:
-                # Set turn to the next player
-                turn = teams_in_play[(teams_in_play.index(turn) + 1) % self.n_teams_in_play]
-            else:
-                if display:
-                    print("You get an extra turn")
-        return player
+    def _plot_setup(self) -> None:
+        self.img_board = Image.open("board/board.png")
+        img_blue = Image.open("board/blue.png")
+        img_red = Image.open("board/red.png")
+        img_green = Image.open("board/green.png")
+        img_orange = Image.open("board/orange.png")
+        self.pieces = [img_blue, img_red, img_green, img_orange]
+        self.plot_offset = [(-14, -14), (7, -14), (-14, 7), (7, 7)]
+        # Start places
+        self.board_pos = [(700, 140), (700, 700), (140, 700), (140, 140)]
+        # Part of blue path
+        self.board_pos += [(476, 84 + 56 * x) for x in range(5)]
+        # Red path
+        self.board_pos += [(532 + 56 * x, 364) for x in range(6)]
+        self.board_pos += [(812, 420)]
+        self.board_pos += [(812 - 56 * x, 476) for x in range(6)]
+        # # Green path
+        self.board_pos += [(476, 532 + 56 * x) for x in range(6)]
+        self.board_pos += [(420, 812)]
+        self.board_pos += [(364, 812 - 56 * x) for x in range(6)]
+        # # Orange path
+        self.board_pos += [(308 - 56 * x, 476) for x in range(6)]
+        self.board_pos += [(28, 420)]
+        self.board_pos += [(28 + 56 * x, 364) for x in range(6)]
+        # Blue path
+        self.board_pos += [(364, 308 - 56 * x) for x in range(6)]
+        self.board_pos += [(420 + 56 * x, 28) for x in range(2)]
+        # Blue arm
+        self.board_pos += [(420, 84 + 56 * x) for x in range(6)]
+        # Red arm
+        self.board_pos += [(756 - 56 * x, 420) for x in range(6)]
+        # Green arm
+        self.board_pos += [(420, 756 - 56 * x) for x in range(6)]
+        # Orange arm
+        self.board_pos += [(84 + 56 * x, 420) for x in range(6)]
 
     def _add_tup(self, a: tuple, b: tuple) -> tuple:
         c = tuple((x + y for x, y in zip(a, b)))
@@ -305,7 +301,6 @@ class Ludo:
         plt.axis("off")
         plt.imshow(img_board)
         plt.show(block=False)
-
 
 if __name__ == "__main__":
     PLAYERS = [
