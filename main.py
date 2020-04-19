@@ -7,15 +7,15 @@ from profiler import profile
 
 @profile
 def measure_time(PLAYERS, N):
+    ludo = Ludo()
     for n in range(N):
-        ludo = Ludo()
         ludo.play(PLAYERS, display=False)
 
 
 def make_statistics(PLAYERS, N):
     wins = {}
+    ludo = Ludo()
     for n in range(N):
-        ludo = Ludo()
         winner = ludo.play(PLAYERS, display=False)
 
         func_name = winner.function.__name__
@@ -43,7 +43,7 @@ if __name__ == "__main__":
     #     # Player("Four", move_semi_manual),
     # ]
     
-    measure_time(PLAYERS, N=2500)
+    measure_time(PLAYERS, N=1500)
     # make_statistics(PLAYERS, N=100)
 
     # ludo = Ludo()

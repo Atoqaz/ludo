@@ -25,7 +25,6 @@ class Player:
 
 class Ludo:
     def __init__(self):
-        self.board = self._create_board()
         self.stars = [6, 12, 19, 25, 32, 38, 45, 51]
         self.globes = [1, 9, 14, 22, 27, 35, 40, 48]
         self.goal_pos = 57
@@ -134,8 +133,7 @@ class Ludo:
 
     def _effecting_others(self, board: np.array, turn: int, location: int) -> (int, List[int]):
         if location <= 51:
-            enemies_idx = [(x + 1 + turn) % 4 for x in range(3)]
-            for i, enemy_idx in enumerate(enemies_idx, 1):
+            for i, enemy_idx in enumerate(self.enemies_idx[turn], 1):
                 pos = (location - i * self.offset - 1) % 52 + 1
                 enemy_in_spot = board[:, enemy_idx] == pos
                 if enemy_in_spot.any():
@@ -182,18 +180,12 @@ class Ludo:
     def _get_next_player(self, teams: List[int], turn: str):
         return teams[(teams.index(turn) + 1) % len(teams)]
 
-    def _get_used_items(self, full: list, subset: list):
-        used = full
-        unused = list(set(full) - set(subset))
-        for item in unused:
-            full.remove(item)
-        return used
-
     def _initialize_game(self, PLAYERS: List[Player]):
         # Give players a color
         n_players = len(PLAYERS)
         if n_players >= 2 and n_players <= 4:
             teams = np.random.choice([0, 1, 2, 3], n_players, replace=False)
+            teams_in_play = sorted(teams.tolist())
             colors = ["Blue", "Red", "Green", "Orange"]
 
             team_to_player_idx = {}
@@ -202,7 +194,12 @@ class Ludo:
                 player.color = colors[teams[i]]
                 team_to_player_idx[teams[i]] = i
 
-            teams_in_play = self._get_used_items(full=[0, 1, 2, 3], subset=teams)
+            self.enemies_idx = {}
+            for team in teams:
+                self.enemies_idx[team] = [(x + 1 + team) % 4 for x in range(3)]
+
+            self.n_teams_in_play = len(teams_in_play)
+
         else:
             raise ValueError(f"Player count should be between 2 and 4, but it is set to {n_players}")
 
@@ -223,7 +220,8 @@ class Ludo:
     def play(self, PLAYERS: List[Player], display=True):
         if display:
             self._plot_setup()
-
+        
+        self.board = self._create_board()
         teams, teams_in_play, team_to_player_idx = self._initialize_game(PLAYERS=PLAYERS)
 
         # Select starting player
@@ -237,7 +235,7 @@ class Ludo:
             if display:
                 os.system("cls" if os.name == "nt" else "clear")
                 self.display_board(self.board)
-                print(self.board)
+                # print(self.board)
                 if dice_roll == self.dice_star:
                     dice_text = "Star"
                 elif dice_roll == self.dice_globe:
@@ -283,7 +281,8 @@ class Ludo:
                     
             # Give extra turn if globe is rolled
             if dice_roll != self.dice_globe:
-                turn = self._get_next_player(teams_in_play, turn)
+                # Set turn to the next player
+                turn = teams_in_play[(teams_in_play.index(turn) + 1) % self.n_teams_in_play]
             else:
                 if display:
                     print("You get an extra turn")
@@ -312,7 +311,7 @@ if __name__ == "__main__":
     PLAYERS = [
         Player("Zero", None),
         Player("One", None),
-        Player("Two", None),
+        # Player("Two", None),
         Player("Three", None),
     ]
     ludo = Ludo()
