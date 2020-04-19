@@ -114,7 +114,7 @@ class Ludo:
 
     def _roll_dice(self, board: np.array, turn: int):
         if (board[:, turn] == 0).all():
-            for count in range(3):
+            for _ in range(3):
                 dice_roll = randint(1, 6)
                 if dice_roll == self.dice_globe:
                     break
@@ -196,7 +196,7 @@ class Ludo:
 
             self.enemies_idx = {}
             for team in teams:
-                self.enemies_idx[team] = [(x + 1 + team) % 4 for x in range(3)]
+                self.enemies_idx[team] = [(x + team) % 4 for x in range(1,4)]
 
             self.n_teams_in_play = len(teams_in_play)
 
@@ -311,7 +311,7 @@ if __name__ == "__main__":
     PLAYERS = [
         Player("Zero", None),
         Player("One", None),
-        # Player("Two", None),
+        Player("Two", None),
         Player("Three", None),
     ]
     ludo = Ludo()
