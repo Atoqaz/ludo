@@ -208,15 +208,16 @@ class Ludo:
 
         return teams, teams_in_play, team_to_player_idx
 
-    def _detect_win(self, board: np.array, player: Player, display: bool) -> bool:
-        final_pos = self.goal_pos * 4
-        for i, score in enumerate(board.sum(axis=0)):
-            if score == final_pos:
-                if display:
-                    os.system("cls" if os.name == "nt" else "clear")
-                    print("\n--- GAME OVER ---\n")
-                    print(f"The winner is {player.name} ({player.color})")
-                return True
+    def _detect_win(self, board: np.array, player: Player, turn: int, display: bool) -> bool:
+        for pos in board[:, turn]:
+            if pos != self.goal_pos:
+                return False
+        else:
+            if display:
+                os.system("cls" if os.name == "nt" else "clear")
+                print("\n--- GAME OVER ---\n")
+                print(f"The winner is {player.name} ({player.color})")
+            return True
         return False
 
     def play(self, PLAYERS: List[Player], display=True):
@@ -236,7 +237,7 @@ class Ludo:
             if display:
                 os.system("cls" if os.name == "nt" else "clear")
                 self.display_board(self.board)
-                # print(self.board)
+                print(self.board)
                 if dice_roll == self.dice_star:
                     dice_text = "Star"
                 elif dice_roll == self.dice_globe:
@@ -273,7 +274,7 @@ class Ludo:
                     piece2move=piece2move,
                 )
 
-                if self._detect_win(board=self.board, player=player, display=display):
+                if self._detect_win(board=self.board, player=player, turn=turn, display=display):
                     break
             else:
                 if display:

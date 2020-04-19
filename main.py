@@ -3,7 +3,6 @@ from player_functions import *
 
 from profiler import profile
 
-import numpy as np
 
 
 @profile
@@ -32,10 +31,10 @@ def make_statistics(PLAYERS, N):
 
 if __name__ == "__main__":
     PLAYERS = [
-        Player("One", move_max_score),
+        Player("One", move_naive),
         Player("Two", move_naive),
         Player("Three", move_naive),
-        Player("Four", move_random),
+        Player("Four", move_naive),
     ]
     # PLAYERS = [
     #     Player("One", move_semi_manual),
@@ -44,9 +43,9 @@ if __name__ == "__main__":
     #     # Player("Four", move_semi_manual),
     # ]
     
-    # measure_time(PLAYERS, N=100)
-    # make_statistics(PLAYERS, N=200)
+    measure_time(PLAYERS, N=2500)
+    # make_statistics(PLAYERS, N=100)
 
-    ludo = Ludo()
-    winner = ludo.play(PLAYERS=PLAYERS, display=True)
+    # ludo = Ludo()
+    # winner = ludo.play(PLAYERS=PLAYERS, display=True)
     # print(winner)
