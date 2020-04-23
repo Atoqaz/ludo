@@ -31,7 +31,29 @@ class Ludo:
         self.dice_star = 3  # Dice roll corresponding to a star
         self.dice_globe = 5  # Dice roll corresponding to a globe
 
-    def play(self, PLAYERS: List[Player], display=True) -> Player:
+        self.enemies_idx = {}
+        for team in [0,1,2,3]:
+            self.enemies_idx[team] = [(x + team) % 4 for x in range(1,4)]
+
+    def _display_board_and_dice_roll(self, dice_roll: int, player: Player):
+        os.system("cls" if os.name == "nt" else "clear")
+        self.display_board(self.board)
+        # print(self.board)
+        if dice_roll == self.dice_star:
+            dice_text = "Star"
+        elif dice_roll == self.dice_globe:
+            dice_text = "Globe"
+        else:
+            dice_text = dice_roll
+        print(f"{player.name} ({player.color}) rolled: {dice_text}")
+
+    def play(self, PLAYERS: List[Player], display: bool = True, n_players_to_finish: int = 1) -> Player:
+        self.n_turns = 0
+
+        self.winning_placement = []
+        if n_players_to_finish < 1 or n_players_to_finish > 4:
+            raise ValueError("The number of players that needs to finish must be between 1 and 4")
+
         if display:
             self._plot_setup()
         
@@ -42,57 +64,50 @@ class Ludo:
         turn = np.random.choice(teams_in_play, 1)[0]
         # Start game
         while True:
-            dice_roll = self._roll_dice(board=self.board, turn=turn)
-
             player = PLAYERS[team_to_player_idx[turn]]
-            # Display information:
-            if display:
-                os.system("cls" if os.name == "nt" else "clear")
-                self.display_board(self.board)
-                # print(self.board)
-                if dice_roll == self.dice_star:
-                    dice_text = "Star"
-                elif dice_roll == self.dice_globe:
-                    dice_text = "Globe"
-                else:
-                    dice_text = dice_roll
-                print(f"{player.name} ({player.color}) rolled: {dice_text}")
 
-            # Get options and move player piece
-            moveable_pieces = self.get_moveable_pieces(board=self.board, turn=turn, dice_roll=dice_roll)
-            if moveable_pieces:
-                while True:
-                    if player.function == None:
-                        try:
-                            piece2move = int(input(f"Select piece to move {moveable_pieces}: "))
-                        except ValueError:
-                            piece2move = -1
-                    else:
-                        piece2move = player.function(
-                            PLAYERS=PLAYERS,
-                            board=self.board,
-                            moveable_pieces=moveable_pieces,
-                            turn=turn,
-                            dice_roll=dice_roll,
-                        )
-                    if piece2move in moveable_pieces:
-                        break
+            if player not in self.winning_placement:
+                dice_roll = self._roll_dice(turn=turn)
 
-                self.board = self.move_piece(
-                    board=self.board,
-                    moveable_pieces=moveable_pieces,
-                    turn=turn,
-                    dice_roll=dice_roll,
-                    piece2move=piece2move,
-                )
-
-                if self._detect_win(board=self.board, player=player, turn=turn, display=display):
-                    break
-            else:
                 if display:
-                    print("Sorry, you could not move any pieces this turn")
-                    # sleep(1.5)
-                    
+                    self._display_board_and_dice_roll(dice_roll=dice_roll, player=player)
+
+                # Get options and move player piece
+                moveable_pieces = self.get_moveable_pieces(board=self.board, turn=turn, dice_roll=dice_roll)
+                if moveable_pieces:
+                    while True:
+                        if player.function == None:
+                            try:
+                                piece2move = int(input(f"Select piece to move {moveable_pieces}: "))
+                            except ValueError:
+                                piece2move = -1
+                        else:
+                            self.n_turns += 1
+                            piece2move = player.function(
+                                PLAYERS=PLAYERS,
+                                board=self.board,
+                                moveable_pieces=moveable_pieces,
+                                turn=turn,
+                                dice_roll=dice_roll,
+                            )
+                        if piece2move in moveable_pieces:
+                            break
+
+                    self.board = self.move_piece(
+                        board=self.board,
+                        moveable_pieces=moveable_pieces,
+                        turn=turn,
+                        dice_roll=dice_roll,
+                        piece2move=piece2move,
+                    )
+
+                    if self._detect_win(board=self.board, player=player, turn=turn, n_players_to_finish=n_players_to_finish):
+                        break
+                else:
+                    if display:
+                        print("Sorry, you could not move any pieces this turn")
+                        # sleep(1.5)
+            
             # Give extra turn if globe is rolled
             if dice_roll != self.dice_globe:
                 # Set turn to the next player
@@ -100,7 +115,15 @@ class Ludo:
             else:
                 if display:
                     print("You get an extra turn")
-        return player
+
+        if display:
+            os.system("cls" if os.name == "nt" else "clear")
+            print("\n--- GAME OVER ---\n")
+            print(f"The wining order is")
+            for i, player in enumerate(self.winning_placement, 1):
+                print(f"Position: {i} | {player}")
+
+        return self.winning_placement
 
     def _create_board(self) -> np.array:
         """ The board is the position of the 4 pieces for each team.
@@ -146,8 +169,8 @@ class Ludo:
                 board_abs[i, j] = real_pos
         return board_abs
 
-    def _roll_dice(self, board: np.array, turn: int) -> int:
-        if (board[:, turn] == 0).all():
+    def _roll_dice(self, turn: int) -> int:
+        if (self.board[:, turn] == 0).all():
             for _ in range(3):
                 dice_roll = randint(1, 6)
                 if dice_roll == self.dice_globe:
@@ -225,10 +248,6 @@ class Ludo:
                 player.color = colors[teams[i]]
                 team_to_player_idx[teams[i]] = i
 
-            self.enemies_idx = {}
-            for team in teams:
-                self.enemies_idx[team] = [(x + team) % 4 for x in range(1,4)]
-
             self.n_teams_in_play = len(teams_in_play)
 
         else:
@@ -236,17 +255,18 @@ class Ludo:
 
         return teams_in_play, team_to_player_idx
 
-    def _detect_win(self, board: np.array, player: Player, turn: int, display: bool) -> bool:
+    def _detect_win(self, board: np.array, player: Player, turn: int, n_players_to_finish: int = 1) -> bool:
+        # if player in self.winning_placement:
+        #     return False
+        # else:
         for pos in board[:, turn]:
             if pos != self.goal_pos:
                 return False
-        else:
-            if display:
-                os.system("cls" if os.name == "nt" else "clear")
-                print("\n--- GAME OVER ---\n")
-                print(f"The winner is {player.name} ({player.color})")
-            return True
+        self.winning_placement.append(player)
+        if len(self.winning_placement) == n_players_to_finish:
+                return True
         return False
+
 
     def _plot_setup(self) -> None:
         self.img_board = Image.open("board/board.png")

@@ -16,7 +16,7 @@ def make_statistics(PLAYERS, N):
     wins = {}
     ludo = Ludo()
     for n in range(N):
-        winner = ludo.play(PLAYERS, display=False)
+        winner = ludo.play(PLAYERS, display=False)[0]
 
         func_name = winner.function.__name__
         if func_name not in wins:
@@ -32,8 +32,8 @@ def make_statistics(PLAYERS, N):
 if __name__ == "__main__":
     PLAYERS = [
         Player("One", move_naive),
-        Player("Two", move_naive),
-        Player("Three", move_naive),
+        Player("Two", move_random),
+        Player("Three", move_random),
         Player("Four", move_naive),
     ]
     # PLAYERS = [
@@ -43,9 +43,9 @@ if __name__ == "__main__":
     #     # Player("Four", move_semi_manual),
     # ]
     
-    measure_time(PLAYERS, N=1500)
-    # make_statistics(PLAYERS, N=100)
+    # measure_time(PLAYERS, N=1500)
+    make_statistics(PLAYERS, N=100)
 
     # ludo = Ludo()
-    # winner = ludo.play(PLAYERS=PLAYERS, display=True)
+    # winner = ludo.play(PLAYERS=PLAYERS, display=False, n_players_to_finish=4)
     # print(winner)
