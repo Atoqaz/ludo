@@ -11,6 +11,7 @@ import os
 from PIL import Image
 import matplotlib.pyplot as plt
 
+
 @dataclass()
 class Player:
     name: str
@@ -32,8 +33,8 @@ class Ludo:
         self.dice_globe = 5  # Dice roll corresponding to a globe
 
         self.enemies_idx = {}
-        for team in [0,1,2,3]:
-            self.enemies_idx[team] = [(x + team) % 4 for x in range(1,4)]
+        for team in [0, 1, 2, 3]:
+            self.enemies_idx[team] = [(x + team) % 4 for x in range(1, 4)]
 
     def _display_board_and_dice_roll(self, dice_roll: int, player: Player):
         os.system("cls" if os.name == "nt" else "clear")
@@ -56,7 +57,7 @@ class Ludo:
 
         if display:
             self._plot_setup()
-        
+
         self.board = self._create_board()
         teams_in_play, team_to_player_idx = self._initialize_game(PLAYERS=PLAYERS)
 
@@ -101,13 +102,15 @@ class Ludo:
                         piece2move=piece2move,
                     )
 
-                    if self._detect_win(board=self.board, player=player, turn=turn, n_players_to_finish=n_players_to_finish):
+                    if self._detect_win(
+                        board=self.board, player=player, turn=turn, n_players_to_finish=n_players_to_finish
+                    ):
                         break
                 else:
                     if display:
                         print("Sorry, you could not move any pieces this turn")
                         # sleep(1.5)
-            
+
             # Give extra turn if globe is rolled
             if dice_roll != self.dice_globe:
                 # Set turn to the next player
@@ -234,7 +237,7 @@ class Ludo:
 
         return _board
 
-    def _initialize_game(self, PLAYERS: List[Player]) -> (List[int], Dict[int,int]):
+    def _initialize_game(self, PLAYERS: List[Player]) -> (List[int], Dict[int, int]):
         # Give players a color
         n_players = len(PLAYERS)
         if n_players >= 2 and n_players <= 4:
@@ -256,17 +259,13 @@ class Ludo:
         return teams_in_play, team_to_player_idx
 
     def _detect_win(self, board: np.array, player: Player, turn: int, n_players_to_finish: int = 1) -> bool:
-        # if player in self.winning_placement:
-        #     return False
-        # else:
         for pos in board[:, turn]:
             if pos != self.goal_pos:
                 return False
         self.winning_placement.append(player)
         if len(self.winning_placement) == n_players_to_finish:
-                return True
+            return True
         return False
-
 
     def _plot_setup(self) -> None:
         self.img_board = Image.open("board/board.png")
@@ -321,6 +320,7 @@ class Ludo:
         plt.axis("off")
         plt.imshow(img_board)
         plt.show(block=False)
+
 
 if __name__ == "__main__":
     PLAYERS = [

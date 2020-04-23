@@ -4,7 +4,6 @@ from player_functions import *
 from profiler import profile
 
 
-
 @profile
 def measure_time(PLAYERS, N):
     ludo = Ludo()
@@ -42,7 +41,7 @@ if __name__ == "__main__":
     #     Player("Three", move_semi_manual),
     #     # Player("Four", move_semi_manual),
     # ]
-    
+
     # measure_time(PLAYERS, N=1500)
     make_statistics(PLAYERS, N=100)
 
