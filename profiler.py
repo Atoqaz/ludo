@@ -38,6 +38,7 @@ def profile(fnc):
         sortby = "cumulative"
         ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
         ps.print_stats()
+        # ps.dump_stats(filename='profiling_results.prof')
         print(s.getvalue())
         return retval
 

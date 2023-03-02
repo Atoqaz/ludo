@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 @dataclass()
 class Player:
     name: str
-    function: str  # Function, not a string. I don't know the name/syntax
+    function: callable
     team: int = None
     color: str = None
 
@@ -48,12 +48,16 @@ class Ludo:
             dice_text = dice_roll
         print(f"{player.name} ({player.color}) rolled: {dice_text}")
 
-    def play(self, PLAYERS: List[Player], display: bool = True, n_players_to_finish: int = 1) -> Player:
+    def play(
+        self, PLAYERS: List[Player], display: bool = True, n_players_to_finish: int = 1
+    ) -> Player:
         self.n_turns = 0
 
         self.winning_placement = []
         if n_players_to_finish < 1 or n_players_to_finish > 4:
-            raise ValueError("The number of players that needs to finish must be between 1 and 4")
+            raise ValueError(
+                "The number of players that needs to finish must be between 1 and 4"
+            )
 
         if display:
             self._plot_setup()
@@ -71,15 +75,21 @@ class Ludo:
                 dice_roll = self._roll_dice(turn=turn)
 
                 if display:
-                    self._display_board_and_dice_roll(dice_roll=dice_roll, player=player)
+                    self._display_board_and_dice_roll(
+                        dice_roll=dice_roll, player=player
+                    )
 
                 # Get options and move player piece
-                moveable_pieces = self.get_moveable_pieces(board=self.board, turn=turn, dice_roll=dice_roll)
+                moveable_pieces = self.get_moveable_pieces(
+                    board=self.board, turn=turn, dice_roll=dice_roll
+                )
                 if moveable_pieces:
                     while True:
                         if player.function == None:
                             try:
-                                piece2move = int(input(f"Select piece to move {moveable_pieces}: "))
+                                piece2move = int(
+                                    input(f"Select piece to move {moveable_pieces}: ")
+                                )
                             except ValueError:
                                 piece2move = -1
                         else:
@@ -103,7 +113,10 @@ class Ludo:
                     )
 
                     if self._detect_win(
-                        board=self.board, player=player, turn=turn, n_players_to_finish=n_players_to_finish
+                        board=self.board,
+                        player=player,
+                        turn=turn,
+                        n_players_to_finish=n_players_to_finish,
                     ):
                         break
                 else:
@@ -114,7 +127,9 @@ class Ludo:
             # Give extra turn if globe is rolled
             if dice_roll != self.dice_globe:
                 # Set turn to the next player
-                turn = teams_in_play[(teams_in_play.index(turn) + 1) % self.n_teams_in_play]
+                turn = teams_in_play[
+                    (teams_in_play.index(turn) + 1) % self.n_teams_in_play
+                ]
             else:
                 if display:
                     print("You get an extra turn")
@@ -182,7 +197,9 @@ class Ludo:
             dice_roll = randint(1, 6)
         return dice_roll
 
-    def get_moveable_pieces(self, board: np.array, turn: int, dice_roll: int) -> List[int]:
+    def get_moveable_pieces(
+        self, board: np.array, turn: int, dice_roll: int
+    ) -> List[int]:
         if dice_roll == self.dice_star:
             mask = (board[:, turn] < self.stars[-1]) & (board[:, turn] > 0)
         elif dice_roll == self.dice_globe:
@@ -191,7 +208,9 @@ class Ludo:
             mask = (board[:, turn] > 0) & (board[:, turn] < self.goal_pos)
         return [i for i, x in enumerate(mask) if x == True]
 
-    def _effecting_others(self, board: np.array, turn: int, location: int) -> (int, List[int]):
+    def _effecting_others(
+        self, board: np.array, turn: int, location: int
+    ) -> (int, List[int]):
         if location <= 51:
             for i, enemy_idx in enumerate(self.enemies_idx[turn], 1):
                 pos = (location - i * self.offset - 1) % 52 + 1
@@ -208,25 +227,38 @@ class Ludo:
         return None
 
     def move_piece(
-        self, board: np.array, turn: int, moveable_pieces: List[int], dice_roll: int, piece2move: int
+        self,
+        board: np.array,
+        turn: int,
+        moveable_pieces: List[int],
+        dice_roll: int,
+        piece2move: int,
     ) -> np.array:
         _board = np.array(board, copy=True)
         if piece2move not in moveable_pieces:
             raise ValueError(f"Unable to move piece {piece2move} for player {turn}")
 
         if dice_roll == self.dice_star:
-            new_pos = self._get_next_object_pos(objects=self.stars, current_pos=_board[piece2move, turn])
+            new_pos = self._get_next_object_pos(
+                objects=self.stars, current_pos=_board[piece2move, turn]
+            )
         elif dice_roll == self.dice_globe:
-            new_pos = self._get_next_object_pos(objects=self.globes, current_pos=_board[piece2move, turn])
+            new_pos = self._get_next_object_pos(
+                objects=self.globes, current_pos=_board[piece2move, turn]
+            )
         else:
             new_pos = min(_board[piece2move, turn] + dice_roll, self.goal_pos)
 
-        effected_enemy, effected_pieces = self._effecting_others(board=_board, turn=turn, location=new_pos)
+        effected_enemy, effected_pieces = self._effecting_others(
+            board=_board, turn=turn, location=new_pos
+        )
         if effected_pieces == None:
             # No enemy piece on location
             _board[piece2move, turn] = new_pos
         else:
-            if (new_pos == 1) or (len(effected_pieces) == 1 and (new_pos not in self.globes[1:])):
+            if (new_pos == 1) or (
+                len(effected_pieces) == 1 and (new_pos not in self.globes[1:])
+            ):
                 # Player piece takes enemy position, enemy get moved to start
                 _board[piece2move, turn] = new_pos
                 for piece in effected_pieces:
@@ -254,11 +286,15 @@ class Ludo:
             self.n_teams_in_play = len(teams_in_play)
 
         else:
-            raise ValueError(f"Player count should be between 2 and 4, but it is set to {n_players}")
+            raise ValueError(
+                f"Player count should be between 2 and 4, but it is set to {n_players}"
+            )
 
         return teams_in_play, team_to_player_idx
 
-    def _detect_win(self, board: np.array, player: Player, turn: int, n_players_to_finish: int = 1) -> bool:
+    def _detect_win(
+        self, board: np.array, player: Player, turn: int, n_players_to_finish: int = 1
+    ) -> bool:
         for pos in board[:, turn]:
             if pos != self.goal_pos:
                 return False
